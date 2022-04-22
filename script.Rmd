@@ -1,0 +1,132 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+## Installing Important Libraries
+
+```{r}
+library(rtweet) 
+library(tidytext)
+library(ggpubr) 
+library(tidyverse)
+library(twitteR)
+#library(dplyr)
+```
+
+## Getting Tweet
+
+```{r}
+# Download all recent tweets of account
+uber_tweets<- search_tweets("uber", n=5000, type = "recent", include_rts = FALSE) # search for all tweets containing the hashtag 'uber'
+# Look at the dataframe
+View(uber_tweets)
+```
+
+
+## Displaying First few Rows
+
+```{r}
+# get first few rows
+head(uber_tweets)
+
+```
+## Displaying emoji's
+
+```{r}
+knitr::asis_output(uber_tweets$text)
+
+```
+
+
+## Extracting Tweets Text data Specifcally
+
+```{r}
+# We need to restructure lego as one-token-per-row format
+tidy_tweets <- uber_tweets %>% # pipe data frame 
+    filter(is_retweet==FALSE)%>% # only include original tweets
+  select(status_id, 
+         text)%>% # select variables of interest
+  unnest_tokens(word, text) # splits column in one token per row format
+```
+
+## Checking tidy_tweets
+
+```{r}
+head(tidy_tweets)
+```
+
+```{r}
+#### Getting the devtools package - uncomment below code to run ####
+
+# install.packages("devtools")
+library(devtools)
+
+#### Getting the emo package - uncomment below code to run ####
+devtools::install_github("hadley/emo")
+library(emo)
+```
+
+## Testing Emoji library
+
+```{r}
+emo::ji("robot")
+```
+
+## Now extracting tweets with emoji
+
+```{r}
+tweets_emoji <- uber_tweets %>%
+  mutate( # add a column, call it emo, and insert all the emojis we can extract from the text column
+    emo = ji_extract_all(text)
+  ) %>%
+  select(status_id,user_id,screen_name,text,emo,source) %>% # select the data the tweet was posted and the emoji column
+  unnest(emo) # unnest a list column
+
+tweets_emoji
+```
+
+## On window machine we face issues in viewing emoji rather than showing emoji they display address
+
+```{r}
+nrow(tweets_emoji)
+```
+```{r}
+write.csv(tweets_emoji, file='tweets_with_emoji.csv', row.names = FALSE)
+```
+
+```{r}
+knitr::asis_output(tweets_emoji$emo)
+```
+
+```{r}
+library(arsenal)
+summary(comparedf(uber_tweets, tweets_emoji, by = "user_id"))
+
+```
+## Dataframe without emjois tweets
+
+```{r}
+tweets_without_emoji <- uber_tweets[ !(uber_tweets$user_id %in% c(tweets_emoji$user_id)), ]
+tweets_without_emoji
+```
+
+```{r}
+View(tweets_without_emoji)
+```
+## Drop Hashtags column because it's make issue for writing to csv
+
+```{r}
+tweets_without_emoji_df = subset(tweets_without_emoji, select = c(status_id,user_id,screen_name,text,source) )
+head(tweets_without_emoji_df)
+```
+
+
+## writing CSv
+```{r}
+write.csv(tweets_without_emoji_df, file='tweets_without_emoji.csv', row.names = FALSE)
+```
+
